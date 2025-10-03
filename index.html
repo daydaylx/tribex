@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TribeX Sequencer v0.1</title>
+  <link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+  <div id="app">
+    <header class="toolbar">
+      <div class="branding">
+        <h1>TribeX</h1>
+        <span class="version">v0.1-mvp</span>
+      </div>
+      <div class="transport">
+        <button id="btn-play" aria-pressed="false">Start</button>
+        <button id="btn-stop">Stop</button>
+      </div>
+      <div class="tempo">
+        <label for="tempo">Tempo</label>
+        <input id="tempo" type="number" min="130" max="200" value="170">
+        <span class="unit">BPM</span>
+      </div>
+      <div class="swing">
+        <label for="swing">Swing</label>
+        <input id="swing" type="range" min="0" max="100" value="0">
+        <span id="swing-value">0%</span>
+      </div>
+      <div class="step-length">
+        <label for="step-length">Schritte</label>
+        <select id="step-length">
+          <option value="16">16</option>
+          <option value="32">32</option>
+        </select>
+      </div>
+      <div class="kit-select">
+        <label for="kit">Kit</label>
+        <select id="kit">
+          <option value="tr909">TR-909</option>
+        </select>
+      </div>
+      <div class="project">
+        <button id="btn-save">Projekt sichern</button>
+        <button id="btn-load">Projekt laden</button>
+        <button id="btn-new">Neu</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="pattern-panel">
+        <header>
+          <h2>Pattern</h2>
+          <div class="bank-select">
+            <label for="pattern-bank">Bank</label>
+            <select id="pattern-bank">
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="G">G</option>
+              <option value="H">H</option>
+            </select>
+          </div>
+          <div class="pattern-actions">
+            <button id="btn-pattern-save">Pattern sichern</button>
+            <button id="btn-pattern-clear">Leeren</button>
+          </div>
+        </header>
+        <div id="pattern-list" class="pattern-list" role="listbox" aria-label="Pattern-Auswahl"></div>
+        <div class="chain-editor">
+          <h3>Chain</h3>
+          <div id="chain-list" class="chain-list"></div>
+          <div class="chain-controls">
+            <button id="btn-chain-add">Pattern hinzufügen</button>
+            <button id="btn-chain-clear">Chain leeren</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-panel">
+        <header>
+          <h2>Step Grid</h2>
+          <div class="grid-toolbar">
+            <label><input type="checkbox" id="accent-toggle"> Akzente zeigen</label>
+            <label><input type="checkbox" id="prob-toggle"> Prob</label>
+            <label><input type="checkbox" id="ratchet-toggle"> Ratchet</label>
+            <label><input type="checkbox" id="micro-toggle"> Micro</label>
+          </div>
+        </header>
+        <div id="step-grid" class="step-grid"></div>
+        <div id="step-detail" class="step-detail" aria-live="polite"></div>
+      </section>
+
+      <section class="mixer-panel">
+        <header>
+          <h2>Mixer & FX</h2>
+        </header>
+        <div id="mixer" class="mixer"></div>
+        <div class="master">
+          <h3>Master</h3>
+          <label> Tilt
+            <input id="master-tilt" type="range" min="-1" max="1" step="0.01" value="0">
+          </label>
+          <label> Clip
+            <input id="master-clip" type="range" min="-6" max="0" step="0.1" value="-0.3">
+          </label>
+        </div>
+      </section>
+
+      <section class="motion-panel">
+        <header>
+          <h2>Motion Sequencing</h2>
+        </header>
+        <div class="motion-controls">
+          <button id="btn-motion-record">Record</button>
+          <button id="btn-motion-clear">Motion löschen</button>
+          <select id="motion-target"></select>
+        </div>
+        <div class="motion-editor">
+          <label>Beat
+            <input id="motion-time" type="number" min="0" step="0.25" value="0">
+          </label>
+          <label>Wert
+            <input id="motion-value" type="range" min="0" max="1" step="0.01" value="1">
+          </label>
+          <label>Interpolation
+            <select id="motion-interp">
+              <option value="linear">Linear</option>
+              <option value="expo">Expo</option>
+            </select>
+          </label>
+          <button id="btn-motion-add">Punkt hinzufügen</button>
+        </div>
+        <div id="motion-lanes" class="motion-lanes"></div>
+      </section>
+
+      <section class="export-panel">
+        <header>
+          <h2>Export</h2>
+        </header>
+        <label for="export-bars">Länge (Takte)</label>
+        <input id="export-bars" type="number" min="1" max="32" value="4">
+        <button id="btn-export">WAV 24/48 exportieren</button>
+        <div id="export-status" class="export-status" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <template id="pattern-item-template">
+    <button class="pattern-item" role="option"></button>
+  </template>
+
+  <template id="step-row-template">
+    <div class="step-row">
+      <div class="part-label"></div>
+      <div class="steps"></div>
+    </div>
+  </template>
+
+  <template id="step-button-template">
+    <button class="step" data-step="0" aria-pressed="false"></button>
+  </template>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
