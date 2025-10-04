@@ -180,9 +180,53 @@ export class Sequencer {
       if (step.prob !== undefined && Math.random() > step.prob) return;
       const motionCutoff = this.motion.valueAt(part.id, 'cutoff', beatPosition);
       if (motionCutoff !== null) {
-        part.params.cutoff = motionCutoff * 20000;
-        part.mixer.lp = part.params.cutoff;
-        this.mixer.updatePart(part.id, part.mixer);
+        if (part.type === 'synth' && part.synth) {
+          const minCut = 200;
+          const maxCut = 12000;
+          part.synth.cutoff = Math.min(maxCut, Math.max(minCut, minCut + (maxCut - minCut) * motionCutoff));
+        } else {
+          part.params.cutoff = motionCutoff * 20000;
+          part.mixer.lp = part.params.cutoff;
+          this.mixer.updatePart(part.id, part.mixer);
+        }
+      }
+      const motionResonance = this.motion.valueAt(part.id, 'resonance', beatPosition);
+      if (motionResonance !== null) {
+        if (part.type === 'synth' && part.synth) {
+          part.synth.resonance = Math.max(0, Math.min(1, motionResonance));
+        } else {
+          part.params.resonance = Math.max(0, Math.min(1, motionResonance));
+        }
+      }
+      if (part.type === 'synth' && part.synth) {
+        const motionAttack = this.motion.valueAt(part.id, 'attack', beatPosition);
+        if (motionAttack !== null) {
+          part.synth.attack = Math.max(0.001, Math.min(0.8, motionAttack * 0.8));
+        }
+        const motionDecay = this.motion.valueAt(part.id, 'decay', beatPosition);
+        if (motionDecay !== null) {
+          part.synth.decay = Math.max(0.001, Math.min(0.8, motionDecay * 0.8));
+        }
+        const motionSustain = this.motion.valueAt(part.id, 'sustain', beatPosition);
+        if (motionSustain !== null) {
+          part.synth.sustain = Math.max(0, Math.min(1, motionSustain));
+        }
+        const motionRelease = this.motion.valueAt(part.id, 'release', beatPosition);
+        if (motionRelease !== null) {
+          part.synth.release = Math.max(0.01, Math.min(2, motionRelease * 2));
+        }
+        const motionLfoRate = this.motion.valueAt(part.id, 'lfoRate', beatPosition);
+        if (motionLfoRate !== null) {
+          part.synth.lfoRate = Math.max(0, Math.min(10, motionLfoRate * 10));
+        }
+        const motionLfoDepth = this.motion.valueAt(part.id, 'lfoDepth', beatPosition);
+        if (motionLfoDepth !== null) {
+          part.synth.lfoDepth = Math.max(0, Math.min(12, motionLfoDepth * 12));
+        }
+      }
+      const motionGlide = this.motion.valueAt(part.id, 'glide', beatPosition);
+      if (motionGlide !== null && part.type === 'synth' && part.synth) {
+        part.synth.glide = Math.max(0, Math.min(0.5, motionGlide * 0.5));
       }
       const voiceStep = {
         ...step,

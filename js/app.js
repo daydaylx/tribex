@@ -1,3 +1,5 @@
+import { Router } from './router.js';
+import { ChatPage, ModelsPage, SettingsPage } from './pages.js';
 import { Sequencer } from './sequencer.js';
 import { Mixer } from './mixer.js';
 import { SampleEngine, createDefaultParts } from './engine.js';
@@ -34,7 +36,9 @@ function createEmptyStep(index) {
     accent: false,
     prob: 1,
     ratchet: 1,
-    microMs: 0
+    microMs: 0,
+    note: 60,
+    detune: 0
   };
 }
 
@@ -48,6 +52,18 @@ function createPattern(bank, slot, partsCount, length) {
       Array.from({ length }, (_, index) => createEmptyStep(index))
     ))
   };
+}
+
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+function midiNoteName(value) {
+  if (Number.isNaN(value) || value === undefined || value === null) {
+    return '-';
+  }
+  const note = Math.max(0, Math.min(127, Math.round(value)));
+  const octave = Math.floor(note / 12) - 1;
+  const name = NOTE_NAMES[note % 12];
+  return `${name}${octave}`;
 }
 
 function createInitialProject() {
@@ -107,6 +123,7 @@ function hydrateProject(raw) {
       ...part,
       mixer: { ...base.mixer, ...(part?.mixer || {}) },
       params: { ...base.params, ...(part?.params || {}) },
+      synth: base.synth ? { ...base.synth, ...(part?.synth || {}) } : undefined,
       motion: part?.motion ? [...part.motion] : []
     };
   });
@@ -165,6 +182,16 @@ function setStatus(message) {
   ui.exportStatus.textContent = message;
 }
 
+function updateStatusCards() {
+  if (!ui.statusBpm) return;
+  const project = state.project || {};
+  ui.statusBpm.textContent = Math.round(project.bpm ?? 0);
+  ui.statusSteps.textContent = project.lengthSteps ?? '-';
+  ui.statusKit.textContent = (project.kit || '–').toUpperCase();
+  const chainCount = project.chain ? project.chain.length : 0;
+  ui.statusChain.textContent = chainCount;
+}
+
 async function setupAudio() {
   if (state.audioContext) return;
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -181,6 +208,7 @@ async function setupAudio() {
     state.project.parts[index].samplePath = part.samplePath;
     state.engine.mixer.updatePart(part.id, part.mixer);
   });
+  updateStatusCards();
   state.sequencer.setProject(state.project);
   state.sequencer.on('step', handleSequencerStep);
   state.sequencer.on('start', time => setStatus(`Start @ ${(time - state.audioContext.currentTime).toFixed(2)}s`));
@@ -216,6 +244,7 @@ function renderTransport() {
   ui.kit.value = state.project.kit;
   ui.masterTilt.value = state.project.master.tilt;
   ui.masterClip.value = state.project.master.clip;
+  updateStatusCards();
 }
 
 function renderPatternList() {
@@ -271,6 +300,7 @@ function renderChain() {
     state.sequencer.setChain(state.project.chain);
   }
   renderChainPosition();
+  updateStatusCards();
 }
 
 function renderChainPosition() {
@@ -316,6 +346,7 @@ function renderStepGrid() {
       button.dataset.partIndex = partIndex;
       button.dataset.stepIndex = stepIndex;
       button.dataset.step = stepIndex;
+      button.dataset.partType = part.type;
       button.textContent = stepIndex + 1;
       updateStepButton(button, step);
       if (state.selectedStep.partIndex === partIndex && state.selectedStep.stepIndex === stepIndex) {
@@ -364,6 +395,14 @@ function updateStepButton(button, step) {
   button.classList.toggle('ratchet', step.ratchet && step.ratchet > 1);
   button.classList.toggle('micro-positive', (step.microMs ?? 0) > 0);
   button.classList.toggle('micro-negative', (step.microMs ?? 0) < 0);
+  if (button.dataset.partType === 'synth' && step.note !== undefined) {
+    const noteName = midiNoteName(step.note);
+    button.dataset.note = noteName;
+    button.title = `${button.textContent} · ${noteName}`;
+  } else {
+    button.dataset.note = '';
+    button.removeAttribute('title');
+  }
 }
 
 function refreshSelectedStepButton() {
@@ -387,7 +426,8 @@ function renderStepDetail() {
   const part = state.project.parts[partIndex];
   const step = pattern.steps[partIndex][stepIndex];
   const title = document.createElement('div');
-  title.innerHTML = `<strong>${part.name}</strong> · Step ${stepIndex + 1}`;
+  const noteSuffix = part.type === 'synth' ? ` · ${midiNoteName(step.note ?? 60)}` : '';
+  title.innerHTML = `<strong>${part.name}</strong> · Step ${stepIndex + 1}${noteSuffix}`;
   container.appendChild(title);
 
   const fields = document.createElement('div');
@@ -402,19 +442,31 @@ function renderStepDetail() {
   });
   const probability = createLabeledSlider('Probability', 0, 1, 0.01, step.prob ?? 1, value => {
     step.prob = parseFloat(value);
-  });
+  }, val => `${Math.round(val * 100)}%`);
   const ratchet = createSelect('Ratchet', [1, 2, 3, 4], step.ratchet ?? 1, value => {
     step.ratchet = parseInt(value, 10);
   });
   const micro = createLabeledSlider('Micro (ms)', -10, 10, 0.5, step.microMs ?? 0, value => {
     step.microMs = parseFloat(value);
-  });
+  }, val => `${val.toFixed(1)} ms`);
 
   [velocity.element, accent, probability.element, ratchet, micro.element].forEach(el => fields.appendChild(el));
+
+  if (part.type === 'synth') {
+    const noteControl = createLabeledSlider('Note', 36, 84, 1, step.note ?? 60, value => {
+      step.note = parseInt(value, 10);
+    }, val => `${midiNoteName(val)} (${Math.round(val)})`);
+    const detuneControl = createLabeledSlider('Detune', -100, 100, 1, step.detune ?? 0, value => {
+      step.detune = parseFloat(value);
+    }, val => `${Math.round(val)}¢`);
+    fields.appendChild(noteControl.element);
+    fields.appendChild(detuneControl.element);
+  }
+
   container.appendChild(fields);
 }
 
-function createLabeledSlider(labelText, min, max, step, value, onInput) {
+function createLabeledSlider(labelText, min, max, step, value, onInput, formatter = (val) => Number(val).toFixed(2)) {
   const wrapper = document.createElement('label');
   wrapper.textContent = labelText;
   const input = document.createElement('input');
@@ -425,9 +477,10 @@ function createLabeledSlider(labelText, min, max, step, value, onInput) {
   input.value = value;
   const valueSpan = document.createElement('span');
   valueSpan.className = 'value';
-  valueSpan.textContent = Number(value).toFixed(2);
+  valueSpan.textContent = formatter(Number(value));
   input.addEventListener('input', event => {
-    valueSpan.textContent = Number(event.target.value).toFixed(2);
+    const numericValue = Number(event.target.value);
+    valueSpan.textContent = formatter(numericValue);
     onInput(event.target.value);
     refreshSelectedStepButton();
   });
@@ -505,6 +558,65 @@ function renderMixer() {
       captureMotion(part, 'drive', part.mixer.drive);
     });
     [gain, pan, hp, lp, drive].forEach(control => row.appendChild(control));
+
+    if (part.type === 'synth') {
+      row.classList.add('synth-row');
+      const synthControls = document.createElement('div');
+      synthControls.className = 'synth-controls';
+      synthControls.style.gridColumn = '1 / -1';
+
+      const waveLabel = createSelect('Waveform', ['sine', 'triangle', 'sawtooth', 'square'], part.synth?.waveform || 'sawtooth', value => {
+        part.synth.waveform = value;
+      });
+      const filterType = createSelect('Filter', ['lowpass', 'bandpass', 'highpass'], part.synth?.filterType || 'lowpass', value => {
+        part.synth.filterType = value;
+      });
+      const lfoWave = createSelect('LFO Wave', ['sine', 'triangle', 'sawtooth', 'square'], part.synth?.lfoWaveform || 'sine', value => {
+        part.synth.lfoWaveform = value;
+      });
+      [waveLabel, filterType, lfoWave].forEach(control => synthControls.appendChild(control));
+
+      const attack = createLabeledSlider('Attack (s)', 0.001, 0.8, 0.001, part.synth?.attack ?? 0.01, value => {
+        part.synth.attack = parseFloat(value);
+        captureMotion(part, 'attack', Math.max(0, Math.min(1, part.synth.attack / 0.8)));
+      }, val => `${val.toFixed(3)} s`);
+      const decay = createLabeledSlider('Decay (s)', 0.001, 0.8, 0.001, part.synth?.decay ?? 0.18, value => {
+        part.synth.decay = parseFloat(value);
+        captureMotion(part, 'decay', Math.max(0, Math.min(1, part.synth.decay / 0.8)));
+      }, val => `${val.toFixed(3)} s`);
+      const sustain = createLabeledSlider('Sustain', 0, 1, 0.01, part.synth?.sustain ?? 0.75, value => {
+        part.synth.sustain = parseFloat(value);
+        captureMotion(part, 'sustain', Math.max(0, Math.min(1, part.synth.sustain)));
+      }, val => val.toFixed(2));
+      const release = createLabeledSlider('Release (s)', 0.01, 2, 0.01, part.synth?.release ?? 0.35, value => {
+        part.synth.release = parseFloat(value);
+        captureMotion(part, 'release', Math.max(0, Math.min(1, part.synth.release / 2)));
+      }, val => `${val.toFixed(2)} s`);
+      const cutoff = createLabeledSlider('Cutoff (Hz)', 200, 12000, 10, part.synth?.cutoff ?? 2200, value => {
+        part.synth.cutoff = parseFloat(value);
+        const normalized = (part.synth.cutoff - 200) / (12000 - 200);
+        captureMotion(part, 'cutoff', Math.max(0, Math.min(1, normalized)));
+      }, val => `${Math.round(val)} Hz`);
+      const resonance = createLabeledSlider('Resonanz', 0, 1, 0.01, part.synth?.resonance ?? 0.2, value => {
+        part.synth.resonance = parseFloat(value);
+        captureMotion(part, 'resonance', Math.max(0, Math.min(1, part.synth.resonance)));
+      }, val => val.toFixed(2));
+      const glide = createLabeledSlider('Glide (s)', 0, 0.5, 0.005, part.synth?.glide ?? 0, value => {
+        part.synth.glide = parseFloat(value);
+        captureMotion(part, 'glide', Math.max(0, Math.min(1, part.synth.glide / 0.5)));
+      }, val => `${val.toFixed(3)} s`);
+      const lfoRate = createLabeledSlider('LFO Rate (Hz)', 0, 10, 0.01, part.synth?.lfoRate ?? 0, value => {
+        part.synth.lfoRate = parseFloat(value);
+        captureMotion(part, 'lfoRate', Math.max(0, Math.min(1, part.synth.lfoRate / 10)));
+      }, val => `${val.toFixed(2)} Hz`);
+      const lfoDepth = createLabeledSlider('LFO Depth (st)', 0, 12, 0.1, part.synth?.lfoDepth ?? 0, value => {
+        part.synth.lfoDepth = parseFloat(value);
+        captureMotion(part, 'lfoDepth', Math.max(0, Math.min(1, part.synth.lfoDepth / 12)));
+      }, val => `${val.toFixed(1)} st`);
+      [attack.element, decay.element, sustain.element, release.element, cutoff.element, resonance.element, glide.element, lfoRate.element, lfoDepth.element].forEach(control => synthControls.appendChild(control));
+      row.appendChild(synthControls);
+    }
+
     mixerContainer.appendChild(row);
   });
 }
@@ -530,7 +642,11 @@ function renderMotionTargets() {
   const select = ui.motionTarget;
   select.innerHTML = '';
   state.project.parts.forEach(part => {
-    ['cutoff', 'resonance', 'start', 'end', 'gain', 'pan'].forEach(paramId => {
+    const params = ['cutoff', 'resonance', 'start', 'end', 'gain', 'pan'];
+    if (part.type === 'synth') {
+      params.push('attack', 'decay', 'sustain', 'release', 'glide', 'lfoRate', 'lfoDepth');
+    }
+    params.forEach(paramId => {
       const option = document.createElement('option');
       option.value = `${part.id}:${paramId}`;
       option.textContent = `${part.name} · ${paramId}`;
@@ -638,6 +754,7 @@ function bindEvents() {
   ui.tempo.addEventListener('input', event => {
     const bpm = parseFloat(event.target.value);
     state.project.bpm = bpm;
+    updateStatusCards();
     if (state.sequencer) state.sequencer.setBpm(bpm);
   });
 
@@ -652,6 +769,7 @@ function bindEvents() {
     const length = parseInt(event.target.value, 10);
     state.project.lengthSteps = length;
     state.project.patterns.forEach(pattern => ensurePatternSize(pattern, state.project.parts.length, length));
+    updateStatusCards();
     if (state.sequencer) state.sequencer.setStepLength(length);
     renderStepGrid();
   });
@@ -659,6 +777,7 @@ function bindEvents() {
   ui.kit.addEventListener('change', async event => {
     const kit = event.target.value;
     state.project.kit = kit;
+    updateStatusCards();
     await state.engine.loadKit(kit, progress => setStatus(`Kit lädt… ${(progress * 100).toFixed(0)}%`));
     setStatus('Kit geladen.');
   });
@@ -830,15 +949,96 @@ function renderAll() {
   renderMixer();
   renderMotionTargets();
   renderChain();
+  updateStatusCards();
 }
 
 function syncMotionFromProject() {
   state.project.parts.forEach(part => {
-    ['cutoff', 'resonance', 'start', 'end', 'gain', 'pan'].forEach(paramId => {
+    const params = ['cutoff', 'resonance', 'start', 'end', 'gain', 'pan'];
+    if (part.type === 'synth') {
+      params.push('attack', 'decay', 'sustain', 'release', 'glide', 'lfoRate', 'lfoDepth');
+    }
+    params.forEach(paramId => {
       const points = part.motion.filter(point => point.paramId === paramId);
       state.motion.setMotion(part.id, paramId, points);
     });
   });
+}
+
+// ============================================
+// ROUTER & NAVIGATION SETUP
+// ============================================
+
+const router = new Router();
+const pages = {
+  chat: new ChatPage(),
+  models: new ModelsPage(),
+  settings: new SettingsPage()
+};
+
+let currentPage = null;
+
+// Page-Rendering
+function renderPage(page) {
+  const container = document.getElementById('page-container');
+  if (!container) return;
+
+  // Cleanup previous page
+  if (currentPage) {
+    currentPage.unmount?.();
+  }
+
+  // Render new page
+  container.innerHTML = page.render();
+  page.mount?.();
+  currentPage = page;
+
+  // Update active nav item
+  updateActiveNav();
+}
+
+// Update Bottom Navigation Active State
+function updateActiveNav() {
+  const currentPath = router.getCurrentPath();
+  document.querySelectorAll('.nav-item').forEach(item => {
+    const route = item.dataset.route;
+    if (route === currentPath) {
+      item.classList.add('active');
+      item.setAttribute('aria-current', 'page');
+    } else {
+      item.classList.remove('active');
+      item.removeAttribute('aria-current');
+    }
+  });
+}
+
+// Register Routes
+router.register('/chat', () => renderPage(pages.chat));
+router.register('/models', () => renderPage(pages.models));
+router.register('/settings', () => renderPage(pages.settings));
+
+// Navigation Click Handler
+function setupNavigation() {
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const route = item.dataset.route;
+      if (route) {
+        router.navigate(route);
+      }
+    });
+  });
+}
+
+// VisualViewport Listener für korrektes Keyboard-Handling auf Android
+if ('visualViewport' in window) {
+  const vv = window.visualViewport;
+  const updateViewportHeight = () => {
+    document.documentElement.style.setProperty('--vvh', `${vv.height}px`);
+  };
+  vv.addEventListener('resize', updateViewportHeight);
+  vv.addEventListener('scroll', updateViewportHeight);
+  updateViewportHeight();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -877,10 +1077,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   ui.motionValue = document.getElementById('motion-value');
   ui.motionInterp = document.getElementById('motion-interp');
   ui.btnExport = document.getElementById('btn-export');
+  ui.exportBars = document.getElementById('export-bars');
+  ui.exportStatus = document.getElementById('export-status');
+  ui.statusBpm = document.getElementById('status-bpm-value');
+  ui.statusSteps = document.getElementById('status-steps-value');
+  ui.statusKit = document.getElementById('status-kit-value');
+  ui.statusChain = document.getElementById('status-chain-value');
   [ui.accentToggle, ui.probToggle, ui.ratchetToggle, ui.microToggle].forEach(toggle => {
     if (toggle) toggle.checked = true;
   });
 
+  // Initialize Router & Navigation
+  setupNavigation();
+  router.init();
+
+  // Legacy Sequencer (hidden)
   state.project = loadProjectFromStorage() || createInitialProject();
   setCurrentPattern(state.project.patterns[0].id);
   renderAll();

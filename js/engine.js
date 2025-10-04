@@ -1,4 +1,5 @@
 import { clamp, dbToGain } from './utils.js';
+import { SynthezicSynth, createDefaultSynthSettings } from './synth.js';
 
 const KIT_PRESETS = {
   tr909: {
@@ -21,17 +22,18 @@ const KIT_PRESETS = {
 };
 
 const DEFAULT_PARTS = [
-  { id: 'part-kick', name: 'Kick', type: 'kick', key: 'kick' },
-  { id: 'part-snare', name: 'Snare', type: 'snare', key: 'snare' },
-  { id: 'part-clap', name: 'Clap', type: 'perc', key: 'clap' },
-  { id: 'part-rim', name: 'Rim', type: 'perc', key: 'rim' },
-  { id: 'part-tom-low', name: 'Tom Low', type: 'perc', key: 'tomLow' },
-  { id: 'part-tom-mid', name: 'Tom Mid', type: 'perc', key: 'tomMid' },
-  { id: 'part-tom-high', name: 'Tom High', type: 'perc', key: 'tomHigh' },
-  { id: 'part-clhh', name: 'Closed Hat', type: 'clhh', key: 'clhh' },
-  { id: 'part-ophh', name: 'Open Hat', type: 'ophh', key: 'ophh' },
-  { id: 'part-crash', name: 'Crash', type: 'perc', key: 'crash' },
-  { id: 'part-bass', name: 'Bass', type: 'bass', key: 'bass' }
+  { id: 'part-kick', name: 'Kick', type: 'kick', sampleKey: 'kick' },
+  { id: 'part-snare', name: 'Snare', type: 'snare', sampleKey: 'snare' },
+  { id: 'part-clap', name: 'Clap', type: 'perc', sampleKey: 'clap' },
+  { id: 'part-rim', name: 'Rim', type: 'perc', sampleKey: 'rim' },
+  { id: 'part-tom-low', name: 'Tom Low', type: 'perc', sampleKey: 'tomLow' },
+  { id: 'part-tom-mid', name: 'Tom Mid', type: 'perc', sampleKey: 'tomMid' },
+  { id: 'part-tom-high', name: 'Tom High', type: 'perc', sampleKey: 'tomHigh' },
+  { id: 'part-clhh', name: 'Closed Hat', type: 'clhh', sampleKey: 'clhh' },
+  { id: 'part-ophh', name: 'Open Hat', type: 'ophh', sampleKey: 'ophh' },
+  { id: 'part-crash', name: 'Crash', type: 'perc', sampleKey: 'crash' },
+  { id: 'part-bass', name: 'Bass', type: 'bass', sampleKey: 'bass' },
+  { id: 'part-synth', name: 'Synthezic', type: 'synth', sampleKey: null }
 ];
 
 function defaultMixerSettings() {
@@ -58,16 +60,22 @@ function emptyMotion() {
 }
 
 export function createDefaultParts() {
-  return DEFAULT_PARTS.map((part, index) => ({
-    id: part.id,
-    name: part.name,
-    type: part.type,
-    sampleKey: part.key,
-    samplePath: `${KIT_PRESETS.tr909.root}${KIT_PRESETS.tr909.samples[part.key]}`,
-    mixer: { ...defaultMixerSettings(), gain: index === 10 ? 0.7 : 0.8 },
-    params: defaultParams(),
-    motion: emptyMotion()
-  }));
+  const kit = KIT_PRESETS.tr909;
+  return DEFAULT_PARTS.map((part, index) => {
+    const sampleKey = part.sampleKey;
+    const sampleFile = sampleKey ? kit.samples[sampleKey] : null;
+    return {
+      id: part.id,
+      name: part.name,
+      type: part.type,
+      sampleKey,
+      samplePath: sampleFile ? `${kit.root}${sampleFile}` : null,
+      mixer: { ...defaultMixerSettings(), gain: part.type === 'bass' ? 0.7 : part.type === 'synth' ? 0.6 : 0.8 },
+      params: defaultParams(),
+      motion: emptyMotion(),
+      synth: part.type === 'synth' ? createDefaultSynthSettings() : undefined
+    };
+  });
 }
 
 export class SampleEngine {
@@ -76,6 +84,7 @@ export class SampleEngine {
     this.mixer = mixer;
     this.currentKitId = 'tr909';
     this.buffers = new Map();
+    this.synth = new SynthezicSynth(context, mixer);
   }
 
   async loadKit(kitId, progressCallback = null) {
@@ -113,6 +122,24 @@ export class SampleEngine {
   }
 
   play(part, step, time, velocity = 1) {
+    if (part.type === 'synth') {
+      const micro = (step?.microMs || 0) / 1000;
+      const startTime = time + micro;
+      const duration = step?.duration ?? 0.25;
+      const ratchet = step?.ratchet ?? 1;
+      const accentBoost = step?.accent ? 1.2 : 1;
+      const synthVelocity = clamp((step?.vel ?? velocity) * accentBoost, 0, 1.5);
+      if (ratchet > 1) {
+        const interval = duration / ratchet;
+        for (let i = 0; i < ratchet; i += 1) {
+          const subStep = { ...step, duration: interval, microMs: 0 };
+          this.synth.trigger(part, subStep, startTime + i * interval, synthVelocity);
+        }
+      } else {
+        this.synth.trigger(part, step, startTime, synthVelocity);
+      }
+      return;
+    }
     const buffer = this.buffers.get(part.sampleKey || part.key || part.type);
     if (!buffer) {
       return;

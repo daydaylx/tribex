@@ -113,6 +113,7 @@ export async function exportProjectToWav(project, engine, bars = 4) {
     ...part,
     mixer: { ...part.mixer },
     params: { ...part.params },
+    synth: part.synth ? { ...part.synth } : undefined,
     motion: (part.motion || []).map(point => ({ ...point }))
   }));
   const motionEngine = new MotionEngine();
@@ -151,6 +152,14 @@ export async function exportProjectToWav(project, engine, bars = 4) {
       const beat = step / 4;
       const motionValues = {
         cutoff: motionEngine.valueAt(part.id, 'cutoff', beat),
+        resonance: motionEngine.valueAt(part.id, 'resonance', beat),
+        attack: motionEngine.valueAt(part.id, 'attack', beat),
+        decay: motionEngine.valueAt(part.id, 'decay', beat),
+        sustain: motionEngine.valueAt(part.id, 'sustain', beat),
+        release: motionEngine.valueAt(part.id, 'release', beat),
+        glide: motionEngine.valueAt(part.id, 'glide', beat),
+        lfoRate: motionEngine.valueAt(part.id, 'lfoRate', beat),
+        lfoDepth: motionEngine.valueAt(part.id, 'lfoDepth', beat),
         gain: motionEngine.valueAt(part.id, 'gain', beat),
         pan: motionEngine.valueAt(part.id, 'pan', beat),
         drive: motionEngine.valueAt(part.id, 'drive', beat),
@@ -159,8 +168,44 @@ export async function exportProjectToWav(project, engine, bars = 4) {
       };
       let needsUpdate = false;
       if (motionValues.cutoff !== null) {
-        part.mixer.lp = motionValues.cutoff * 20000;
-        needsUpdate = true;
+        if (part.type === 'synth' && part.synth) {
+          const minCut = 200;
+          const maxCut = 12000;
+          part.synth.cutoff = Math.min(maxCut, Math.max(minCut, minCut + (maxCut - minCut) * motionValues.cutoff));
+        } else {
+          part.mixer.lp = motionValues.cutoff * 20000;
+          needsUpdate = true;
+        }
+      }
+      if (motionValues.resonance !== null) {
+        if (part.type === 'synth' && part.synth) {
+          part.synth.resonance = Math.max(0, Math.min(1, motionValues.resonance));
+        } else {
+          part.params.resonance = Math.max(0, Math.min(1, motionValues.resonance));
+        }
+      }
+      if (part.type === 'synth' && part.synth) {
+        if (motionValues.attack !== undefined && motionValues.attack !== null) {
+          part.synth.attack = Math.max(0.001, Math.min(0.8, motionValues.attack * 0.8));
+        }
+        if (motionValues.decay !== undefined && motionValues.decay !== null) {
+          part.synth.decay = Math.max(0.001, Math.min(0.8, motionValues.decay * 0.8));
+        }
+        if (motionValues.sustain !== undefined && motionValues.sustain !== null) {
+          part.synth.sustain = Math.max(0, Math.min(1, motionValues.sustain));
+        }
+        if (motionValues.release !== undefined && motionValues.release !== null) {
+          part.synth.release = Math.max(0.01, Math.min(2, motionValues.release * 2));
+        }
+        if (motionValues.lfoRate !== undefined && motionValues.lfoRate !== null) {
+          part.synth.lfoRate = Math.max(0, Math.min(10, motionValues.lfoRate * 10));
+        }
+        if (motionValues.lfoDepth !== undefined && motionValues.lfoDepth !== null) {
+          part.synth.lfoDepth = Math.max(0, Math.min(12, motionValues.lfoDepth * 12));
+        }
+      }
+      if (motionValues.glide !== null && part.type === 'synth' && part.synth) {
+        part.synth.glide = Math.max(0, Math.min(0.5, motionValues.glide * 0.5));
       }
       if (motionValues.gain !== null) {
         part.mixer.gain = motionValues.gain;
