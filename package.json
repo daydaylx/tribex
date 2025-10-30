@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "npx serve -n ."
+    "start": "npx serve -n .",
+    "build": "echo 'No build required'"
   }
 }
