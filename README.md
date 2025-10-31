@@ -2,6 +2,10 @@
 
 Web Audio Performance Sequencer v0.1
 
+## Live-Demo
+
+Die aktuelle Version ist unter [https://tribex.pages.dev/](https://tribex.pages.dev/) verfügbar.
+
 ## Entwicklung
 
 ```bash
