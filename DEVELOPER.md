@@ -172,6 +172,32 @@ Der Build-Prozess verwendet Vite und umfasst:
 4. Asset-Bündelung
 5. Optimierung für Produktion
 
+## Teststrategie
+Das Projekt verwendet Vitest für Unit- und Integrationstests:
+- Unit-Tests für alle Kernmodule (AudioEngineV2, SampleEngine, SynthEngine, Sequencer, Mixer)
+- Integrationstests für Modul-Kooperation
+- Mocking der Web Audio API für Browser-unabhängige Tests
+
+Testbefehle:
+```bash
+# Alle Tests ausführen
+npm test
+
+# Tests mit Coverage-Bericht
+npm run test:coverage
+
+# Tests im Watch-Modus
+npm run test:watch
+```
+
+## CI/CD Workflow
+Der GitHub Actions Workflow in `.github/workflows/ci-cd.yml` führt bei jedem Push und Pull Request folgende Schritte aus:
+- Code-Qualitätsprüfungen
+- Testausführung
+- Build-Prozess
+- Sicherheitsaudit
+- Deployment-Artifact-Erstellung
+
 ## Tests
 
 ### Unit-Tests

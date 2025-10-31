@@ -5,11 +5,11 @@
  */
 
 import { clamp } from '../../utils/index';
-import { SampleEngine } from '../sampler/SampleEngine';
-import { SynthEngine } from '../synthesizer/SynthEngine';
-import { EffectProcessor } from '../effects/EffectProcessor';
-import { Mixer } from '../mixer/Mixer';
-import { MotionEngine } from '../motion/MotionEngine';
+import { SampleEngine } from '../../modules/sampler/SampleEngine';
+import { SynthEngine } from '../../modules/synthesizer/SynthEngine';
+import { EffectProcessor } from '../../modules/effects/EffectProcessor';
+import { Mixer } from '../../modules/mixer/Mixer';
+import { MotionEngine } from '../../core/motion/MotionEngine';
 import { ProjectState, Part } from '../../types';
 
 // Audio-Worklet-Module für präzises Timing

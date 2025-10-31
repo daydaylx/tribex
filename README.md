@@ -18,6 +18,67 @@ npm run build
 npm run preview
 ```
 
+## Testen
+
+```bash
+# Alle Tests ausführen
+npm test
+
+# Tests im Watch-Modus ausführen
+npm run test:watch
+
+# Tests mit Coverage-Bericht
+npm run test:coverage
+```
+
+## CI/CD
+
+Dieses Projekt verwendet GitHub Actions für Continuous Integration. Bei jedem Push und Pull Request werden folgende Prüfungen durchgeführt:
+
+- Code-Qualität (Linter, falls konfiguriert)
+- Unit- und Integrationstests
+- Build-Prozess
+- Sicherheitsaudit
+
+Die Workflow-Konfiguration befindet sich in `.github/workflows/ci-cd.yml`.
+
+## Deployment auf Cloudflare Pages
+
+### Option 1: Git Integration (Empfohlen)
+
+1. Pushe dein Repository zu GitHub/GitLab/Bitbucket
+2. Gehe zu [Cloudflare Pages Dashboard](https://dash.cloudflare.com/pages)
+3. Klicke auf "Create a project" → "Connect to Git"
+4. Wähle dein Repository aus
+5. Konfiguriere das Build:
+   - **Build command**: `npm run build`
+   - **Build output directory**: `dist`
+   - **Node version**: `18` oder höher
+6. Klicke auf "Save and Deploy"
+
+### Option 2: CLI Deployment (Wrangler)
+
+```bash
+# Wrangler installieren (falls noch nicht vorhanden)
+npm install -g wrangler
+
+# Bei Cloudflare anmelden
+wrangler login
+
+# Projekt deployen
+npm run deploy
+```
+
+### Option 3: Direktes Deployment
+
+```bash
+# Build erstellen
+npm run build
+
+# Mit Wrangler deployen
+wrangler pages deploy dist
+```
+
 ## Deployment auf Cloudflare Pages
 
 ### Option 1: Git Integration (Empfohlen)

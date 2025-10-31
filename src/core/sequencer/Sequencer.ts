@@ -11,7 +11,7 @@
  */
 
 import { AudioEngineV2 as AudioEngine } from '../audio-engine/AudioEngineV2';
-import { MotionEngine } from '../motion/MotionEngine';
+import { MotionEngine } from '../../core/motion/MotionEngine';
 import { ProjectState, Pattern, Step, Part, MotionPoint, ChainEntry } from '../../types';
 import { stepDurationSeconds } from '../../utils/index';
 
