@@ -26,7 +26,7 @@ To build the application for production, use the following command:
 npm run build
 ```
 
-This command executes the `build.js` script, which compiles the TypeScript code, and copies all necessary assets to the `dist` directory.
+This command uses Vite to build the application, which compiles the TypeScript code, performs code splitting for better performance, and copies all necessary assets to the `dist` directory.
 
 ### Deployment
 

@@ -19,10 +19,7 @@ class KeyboardHandler {
     this.addShortcut('ArrowUp', () => this.adjustTempo(5), 'Tempo: Increase by 5 BPM');
     this.addShortcut('ArrowDown', () => this.adjustTempo(-5), 'Tempo: Decrease by 5 BPM');
     
-    // Navigation shortcuts
-    this.addShortcut('Digit1', () => this.navigateTo('/chat'), 'Navigate to Chat');
-    this.addShortcut('Digit2', () => this.navigateTo('/models'), 'Navigate to Models');
-    this.addShortcut('Digit3', () => this.navigateTo('/settings'), 'Navigate to Settings');
+
     
     // Pattern shortcuts
     this.addShortcut('KeyR', () => this.randomizePattern(), 'Pattern: Randomize current pattern');
@@ -129,13 +126,7 @@ class KeyboardHandler {
     }
   }
 
-  navigateTo(route) {
-    if (window.app && window.app.router) {
-      window.app.router.navigate(route);
-    } else if (this.app.router) {
-      this.app.router.navigate(route);
-    }
-  }
+
 
   randomizePattern() {
     // Placeholder - would implement pattern randomization logic

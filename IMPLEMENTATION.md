@@ -137,8 +137,8 @@
 </div>
 ```
 
-### Router-Integration (app.js)
-1. Router-Import und Initialisierung
+### Router-Integration (App.jsx)
+1. React Router Funktionalität als Teil der Hauptkomponente
 2. Page-Instanzen erstellen
 3. Routes registrieren
 4. Navigation-Event-Handler
@@ -208,7 +208,7 @@
 
 - ✅ `index.html` - Navigation, Viewport-Meta, Struktur
 - ✅ `css/ui.css` - Viewport-Units, Safe-Areas, Touch-Targets, Navigation-Styles
-- ✅ `js/app.js` - Router-Integration, VisualViewport-Listener
+- ✅ `js/ui/App.jsx` - React Hauptkomponente mit Router-Integration, VisualViewport-Listener
 
 ---
 

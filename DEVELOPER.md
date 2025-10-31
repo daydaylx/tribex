@@ -56,7 +56,7 @@ Das Projekt ist modular aufgebaut mit klaren Verantwortlichkeiten für jede Komp
 
 ### Hauptmodule
 
-- **app.js**: Zentrale Anwendungskontrolle und Zustandsmanagement
+- **App.jsx**: Haupt-React-Komponente mit Zustandsmanagement
 - **sequencer.js**: Timing und Step-Verarbeitung
 - **engine.js**: Audio-Verarbeitung und Sample-Management
 - **mixer.js**: Audio-Mischung und Effekt-Verwaltung
@@ -165,11 +165,12 @@ Das Projekt wurde mit TypeScript-Typdefinitionen versehen:
 - Interfaces für alle wichtigen Klassen
 
 ### Build-Prozess
-Der Build-Prozess umfasst:
-1. TypeScript-Kompilierung (optional)
-2. Minifizierung
-3. Asset-Bündelung
-4. Optimierung für Produktion
+Der Build-Prozess verwendet Vite und umfasst:
+1. TypeScript-Kompilierung mit ES2020 Target
+2. Code-Splitting für bessere Ladeleistung
+3. Minifizierung mit Terser
+4. Asset-Bündelung
+5. Optimierung für Produktion
 
 ## Tests
 

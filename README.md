@@ -65,19 +65,20 @@ tribex/
 ├── assets/           # Statische Assets
 ├── public/           # Öffentliche Dateien (_redirects, etc.)
 ├── dist/             # Build-Output (wird generiert)
-├── build.js          # Build-Script
+├── vite.config.js    # Build- und Entwicklungsserver Konfiguration
 ├── wrangler.toml     # Cloudflare Pages Konfiguration
 └── tsconfig.json     # TypeScript Konfiguration
 ```
 
 ## Build-Prozess
 
-Der Build-Prozess (`build.js`) führt folgende Schritte aus:
+Der Build-Prozess verwendet Vite und führt folgende Schritte aus:
 
-1. **Clean**: Löscht das `dist/` Verzeichnis
-2. **TypeScript**: Kompiliert TypeScript-Dateien aus `src/`
-3. **Copy**: Kopiert alle statischen Dateien (HTML, CSS, JS, Assets)
-4. **Output**: Erstellt ein deploymentfähiges `dist/` Verzeichnis
+1. **Clean**: Löscht und erstellt das `dist/` Verzeichnis neu
+2. **TypeScript**: Kompiliert TypeScript-Dateien aus `src/` mit modernen ES2020 Features
+3. **Code-Splitting**: Trennt Code in logische Blöcke für bessere Ladeleistung
+4. **Minifizierung**: Minifiziert den Output mit Terser
+5. **Output**: Erstellt ein deploymentfähiges `dist` Verzeichnis
 
 ## Cloudflare Pages Konfiguration
 

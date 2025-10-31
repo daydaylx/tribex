@@ -98,10 +98,33 @@ Die Anwendung wird aus den folgenden Kernmodulen bestehen:
 
 ### Phase 1: Refactoring und Bereinigung (1-2 Wochen)
 
-1.  **Entfernen der Chat-Funktion:** Vollständige Entfernung des gesamten Chat-Codes aus dem Projekt.
-2.  **Projekt-Struktur anpassen:** Umstellung auf die neue Projektstruktur mit den oben genannten Kernmodulen.
-3.  **Build-Prozess umstellen:** Migration von `build.js` zu Vite oder Webpack.
-4.  **UI-Framework integrieren:** Einrichten von React oder Vue.js.
+1.  **Entfernen der Chat-Funktion:** Vollständige Entfernung des gesamten Chat-Codes aus dem Projekt. ✅ ERLEDIGT
+    - Entfernt Chat-spezifische CSS-Klassen aus `css/ui.css`
+    - Entfernt Chat-Navigation-Tastaturkürzel aus `src/keyboard.ts` und `js/keyboard.js`
+    - Entfernt Routing-Methoden für Chat-Seiten aus `src/keyboard.ts` und `js/keyboard.js`
+2.  **Projekt-Struktur anpassen:** Umstellung auf die neue Projektstruktur mit den oben genannten Kernmodulen. ✅ ERLEDIGT
+    - Neue Verzeichnisstruktur erstellt: `src/core/`, `src/modules/`, `src/ui/`, `src/types/`, `src/utils/`
+    - Grundlegende Dateien für Audio-Engine und Sequencer angelegt
+    - Zentrale Typdefinitionen und Utility-Funktionen implementiert
+3.  **Build-Prozess umstellen:** Migration von `build.js` zu Vite oder Webpack. ✅ ERLEDIGT
+    - Aktuelle Build-Konfiguration in `vite.config.js` optimiert
+    - Code-Splitting und moderne ES2020-Features implementiert
+    - Dokumentation aktualisiert (README.md, DEVELOPER.md, GEMINI.md)
+4.  **UI-Framework integrieren:** Einrichten von React oder Vue.js. ✅ ERLEDIGT
+    - React-Komponenten in neue Struktur migriert: `src/ui/components/`
+    - Komponenten für Sequencer, Mixer, Synthesizer und Transport erstellt
+    - Haupt-App-Komponente aktualisiert und mit Audio-Engine verbunden
+    - Default-Werte und PropTypes für bessere Stabilität implementiert
+
+### Phase 2: Kern-Implementierung (4-6 Wochen)
+
+1.  **Audio-Engine V2:** Entwicklung einer neuen, leistungsfähigeren Audio-Engine, die für die Anforderungen des Samplers und Synthesizers optimiert ist. ✅ ERLEDIGT
+    - Implementierung präziser Timing-Systeme mit AudioWorklets
+    - Optimierung für gleichzeitige Sampler- und Synthesizer-Verwendung
+    - Performance-Verbesserungen durch Node-Pooling
+    - Erstellung vollständiger Module: Mixer, SampleEngine, SynthEngine, EffectProcessor
+2.  **Sequencer V2:** Implementierung des neuen Sequencers mit allen oben genannten Funktionen.
+3.  **Mixer V1:** Implementierung des 16-Kanal-Mischpults.
 
 ### Phase 2: Kern-Implementierung (4-6 Wochen)
 
@@ -126,5 +149,8 @@ Die Anwendung wird aus den folgenden Kernmodulen bestehen:
 1.  **Erweiterte Sampler-Funktionen:** Implementierung von Slicing, Time-Stretching und Pitch-Shifting.
 2.  **Erweiterte Synthesizer-Funktionen:** Hinzufügen weiterer Oszillator-Algorithmen und Modulationsmöglichkeiten.
 3.  **Performance-Optimierung:** Optimierung der Audio-Verarbeitung und der UI-Performance.
-4.  **Testing:** Umfassende Tests aller Funktionen.
+4.  **Testing:** Umfassende Tests aller Funktionen. ✅ ERLEDIGT
+    - Unit-Tests für alle Kernmodule (AudioEngineV2, Sequencer, SampleEngine, SynthEngine, Mixer)
+    - Integrationstests für die Modul-Kooperation
+    - Test-Setup mit Vitest und JSDOM für Browser-API-Mocks
 5.  **Dokumentation:** Erstellung einer ausführlichen Benutzer- und Entwicklerdokumentation.
