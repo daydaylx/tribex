@@ -70,4 +70,20 @@ export class MotionEngine {
     const segment = findSegment(points, timeBeats);
     return interpolate(segment);
   }
+  
+  // Function to quantize motion values to a grid
+  quantizeValue(value, steps = 4) {
+    // Quantize the value to the nearest step
+    const stepSize = 1 / steps;
+    return Math.round(value / stepSize) * stepSize;
+  }
+
+  // Function to quantize motion timing to musical grid
+  quantizeTime(time, beatDivision = 4) {
+    // Quantize the time to the nearest beat division
+    // This would round to the nearest 1/4 note, 1/8 note, etc.
+    const beatLength = 0.25; // Assuming 4/4 time, 1/4 note
+    const quantizedTime = Math.round(time / (beatLength / beatDivision)) * (beatLength / beatDivision);
+    return Math.max(0, quantizedTime); // Don't go below 0
+  }
 }

@@ -4,7 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "npx serve -n .",
-    "build": "echo 'No build required'"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^5.7.2",
+    "vite": "^7.1.12",
+    "wrangler": "^3.84.1"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }

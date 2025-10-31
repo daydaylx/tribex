@@ -1,55 +1,22 @@
 import { clamp, stepDurationSeconds } from './utils.js';
 
-const LOOKAHEAD = 0.025; // 25 ms
-const QUEUE_TIME = 0.1; // 100 ms
-
 export class Sequencer {
-  constructor(context, engine, mixer, motion) {
-    this.context = context;
-    this.engine = engine;
-    this.mixer = mixer;
-    this.motion = motion;
-
+  constructor(audioEngine) {
+    this.audioEngine = audioEngine;
+    this.context = audioEngine.context;
     this.pattern = null;
     this.chain = [];
     this.chainIndex = 0;
     this.currentStep = 0;
     this.isRunning = false;
-    this.requestStart = false;
-    this.requestStop = false;
-    this.nextStepTime = 0;
-    this.secondsPerStep = stepDurationSeconds(170);
-    this.swing = 0;
-    this.bpm = 170;
+    this.lengthSteps = 16;
     this.callbacks = {};
-  }
 
-  async initClock() {
-    if (!this.context.audioWorklet) {
-      throw new Error('AudioWorklet wird nicht unterstützt.');
-    }
-    await this.context.audioWorklet.addModule('js/worklets/clock-processor.js');
-    this.clockNode = new AudioWorkletNode(this.context, 'tribex-clock', {
-      outputChannelCount: [1]
-    });
-    this.clockNode.port.onmessage = (event) => {
-      if (event.data?.type === 'tick') {
-        this._schedule(event.data.currentTime);
-      }
-    };
-    const lookaheadParam = this.clockNode.parameters.get('lookahead');
-    if (lookaheadParam) {
-      lookaheadParam.setValueAtTime(LOOKAHEAD, this.context.currentTime);
-    }
-    this.clockNode.connect(this.context.destination);
+    this.audioEngine.on('tick', this._tick.bind(this));
   }
 
   on(event, callback) {
     this.callbacks[event] = callback;
-  }
-
-  setProject(project) {
-    this.project = project;
   }
 
   setPattern(pattern) {
@@ -67,18 +34,11 @@ export class Sequencer {
   }
 
   setBpm(bpm) {
-    this.bpm = clamp(bpm, 130, 200);
-    this.secondsPerStep = stepDurationSeconds(this.bpm);
-    if (this.clockNode) {
-      const bpmParam = this.clockNode.parameters.get('bpm');
-      if (bpmParam) {
-        bpmParam.setValueAtTime(this.bpm, this.context.currentTime);
-      }
-    }
+    this.audioEngine.setBpm(bpm);
   }
 
   setSwing(percent) {
-    this.swing = clamp(percent, 0, 100) / 100;
+    this.audioEngine.setSwing(percent);
   }
 
   setStepLength(length) {
@@ -86,159 +46,48 @@ export class Sequencer {
   }
 
   start() {
-    if (this.isRunning || this.requestStart) return;
-    this.requestStart = true;
+    this.audioEngine.start();
   }
 
   stop() {
-    if (!this.isRunning) return;
-    this.requestStop = true;
+    this.audioEngine.stop();
   }
 
-  _schedule(currentTime) {
-    if (this.requestStart) {
-      this._performStart(currentTime);
-    }
-    if (!this.isRunning) {
-      return;
-    }
-    while (this.nextStepTime < currentTime + QUEUE_TIME) {
-      const stepIndex = this.currentStep % this.lengthSteps;
-      const swingOffset = this._swingOffset(stepIndex);
-      const eventTime = this.nextStepTime + swingOffset;
-      this._scheduleStep(stepIndex, eventTime);
-      this.currentStep += 1;
-      if (this.currentStep % this.lengthSteps === 0) {
-        this._patternComplete(eventTime);
-      }
-      this.nextStepTime += this.secondsPerStep;
-    }
-    if (this.requestStop && this.currentStep % this.lengthSteps === 0) {
-      this._performStop();
-    }
-  }
+  _tick({ step, time }) {
+    if (!this.pattern) return;
 
-  _performStart(currentTime) {
-    this.requestStart = false;
-    const barDuration = this.secondsPerStep * this.lengthSteps;
-    const startAt = Math.ceil((currentTime + LOOKAHEAD) / barDuration) * barDuration;
-    this.nextStepTime = startAt;
-    this.currentStep = 0;
-    this.isRunning = true;
-    if (this.clockNode) {
-      const runningParam = this.clockNode.parameters.get('running');
-      if (runningParam) {
-        runningParam.setValueAtTime(1, this.context.currentTime);
-      }
-    }
-    this.callbacks.start?.(startAt);
-  }
-
-  _performStop() {
-    this.isRunning = false;
-    this.requestStop = false;
-    if (this.clockNode) {
-      const runningParam = this.clockNode.parameters.get('running');
-      if (runningParam) {
-        runningParam.setValueAtTime(0, this.context.currentTime);
-      }
-    }
-    this.callbacks.stop?.();
-  }
-
-  _patternComplete(time) {
-    if (this.callbacks.patternEnd) {
-      this.callbacks.patternEnd(time);
-    }
-    if (this.chain.length > 0) {
-      this.chainIndex = (this.chainIndex + 1) % this.chain.length;
-      const nextPattern = this.callbacks.resolvePattern?.(this.chain[this.chainIndex]);
-      if (nextPattern) {
-        this.setPattern(nextPattern);
-      }
-    }
-  }
-
-  _swingOffset(stepIndex) {
-    if (this.swing === 0 || stepIndex % 2 === 0) {
-      return 0;
-    }
-    const amount = this.swing * this.secondsPerStep * 0.5;
-    return amount;
-  }
-
-  _scheduleStep(stepIndex, time) {
-    if (!this.pattern || !this.project) return;
-    const stepDuration = this.secondsPerStep;
-    const beatPosition = stepIndex / 4;
     const events = [];
     this.pattern.steps.forEach((row, partIndex) => {
-      const part = this.project.parts[partIndex];
-      if (!part) return;
-      const step = row[stepIndex];
-      if (!step?.on) return;
-      if (step.prob !== undefined && Math.random() > step.prob) return;
-      const motionCutoff = this.motion.valueAt(part.id, 'cutoff', beatPosition);
-      if (motionCutoff !== null) {
-        if (part.type === 'synth' && part.synth) {
-          const minCut = 200;
-          const maxCut = 12000;
-          part.synth.cutoff = Math.min(maxCut, Math.max(minCut, minCut + (maxCut - minCut) * motionCutoff));
-        } else {
-          part.params.cutoff = motionCutoff * 20000;
-          part.mixer.lp = part.params.cutoff;
-          this.mixer.updatePart(part.id, part.mixer);
+      const stepData = row[step];
+      if (stepData?.on) {
+        if (stepData.prob === undefined || Math.random() < stepData.prob) {
+          events.push({ partIndex, stepData, time });
         }
       }
-      const motionResonance = this.motion.valueAt(part.id, 'resonance', beatPosition);
-      if (motionResonance !== null) {
-        if (part.type === 'synth' && part.synth) {
-          part.synth.resonance = Math.max(0, Math.min(1, motionResonance));
-        } else {
-          part.params.resonance = Math.max(0, Math.min(1, motionResonance));
-        }
-      }
-      if (part.type === 'synth' && part.synth) {
-        const motionAttack = this.motion.valueAt(part.id, 'attack', beatPosition);
-        if (motionAttack !== null) {
-          part.synth.attack = Math.max(0.001, Math.min(0.8, motionAttack * 0.8));
-        }
-        const motionDecay = this.motion.valueAt(part.id, 'decay', beatPosition);
-        if (motionDecay !== null) {
-          part.synth.decay = Math.max(0.001, Math.min(0.8, motionDecay * 0.8));
-        }
-        const motionSustain = this.motion.valueAt(part.id, 'sustain', beatPosition);
-        if (motionSustain !== null) {
-          part.synth.sustain = Math.max(0, Math.min(1, motionSustain));
-        }
-        const motionRelease = this.motion.valueAt(part.id, 'release', beatPosition);
-        if (motionRelease !== null) {
-          part.synth.release = Math.max(0.01, Math.min(2, motionRelease * 2));
-        }
-        const motionLfoRate = this.motion.valueAt(part.id, 'lfoRate', beatPosition);
-        if (motionLfoRate !== null) {
-          part.synth.lfoRate = Math.max(0, Math.min(10, motionLfoRate * 10));
-        }
-        const motionLfoDepth = this.motion.valueAt(part.id, 'lfoDepth', beatPosition);
-        if (motionLfoDepth !== null) {
-          part.synth.lfoDepth = Math.max(0, Math.min(12, motionLfoDepth * 12));
-        }
-      }
-      const motionGlide = this.motion.valueAt(part.id, 'glide', beatPosition);
-      if (motionGlide !== null && part.type === 'synth' && part.synth) {
-        part.synth.glide = Math.max(0, Math.min(0.5, motionGlide * 0.5));
-      }
-      const voiceStep = {
-        ...step,
-        duration: stepDuration,
-      };
-      this.engine.play(part, voiceStep, time, step.vel ?? 1);
-      events.push({ partId: part.id, stepIndex });
     });
-    this.callbacks.step?.({ stepIndex, time, events });
+
+    if (this.callbacks.step) {
+      this.callbacks.step({ step, time, events });
+    }
+
+    if (step === this.lengthSteps - 1) {
+      if (this.callbacks.patternEnd) {
+        this.callbacks.patternEnd(time);
+      }
+      if (this.chain.length > 0) {
+        this.chainIndex = (this.chainIndex + 1) % this.chain.length;
+        const nextPatternId = this.chain[this.chainIndex].patternId;
+        if (this.callbacks.resolvePattern) {
+          const nextPattern = this.callbacks.resolvePattern(nextPatternId);
+          if (nextPattern) {
+            this.setPattern(nextPattern);
+          }
+        }
+      }
+    }
   }
 
   getCurrentStep() {
-    return this.currentStep % (this.lengthSteps || 16);
+    return this.audioEngine.getCurrentStep();
   }
 }
